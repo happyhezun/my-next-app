@@ -47,9 +47,23 @@ export default function NotepadPage() {
     );
   };
 
+  const handleClearAllNotes = () => {
+    // 这是一个破坏性操作，最好有确认提示
+    if (window.confirm("您确定要清空所有记事吗？此操作无法撤销。")) {
+      setNotes([]);
+    }
+  };
+
   return (
     <main className="mx-auto max-w-2xl p-8">
-      <h1 className="mb-6 text-center text-4xl font-bold">我的记事本</h1>
+      <div className="mb-6 flex items-center justify-between gap-4">
+        <h1 className="text-4xl font-bold">我的记事本</h1>
+        {notes.length > 0 && !isLoading && (
+          <button onClick={handleClearAllNotes} className="rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-red-700">
+            清空所有
+          </button>
+        )}
+      </div>
 
       <NoteForm onAddNote={handleAddNote} />
 
