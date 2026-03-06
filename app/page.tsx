@@ -5,52 +5,92 @@ import type { Note } from "./lib/types";
 import NoteForm from "./components/NoteForm";
 import NoteItem from "./components/NoteItem";
 
-const NOTES_STORAGE_KEY = "notepad-notes";
-
 export default function NotepadPage() {
   const [notes, setNotes] = useState<Note[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // 在组件首次挂载到客户端时，从 localStorage 加载数据
+  // 在组件首次挂载到客户端时，从 API 加载数据
   useEffect(() => {
-    try {
-      const savedNotes = localStorage.getItem(NOTES_STORAGE_KEY);
-      if (savedNotes) {
-        setNotes(JSON.parse(savedNotes));
+    const fetchNotes = async () => {
+      try {
+        const response = await fetch('/api/notes');
+        if (!response.ok) {
+          throw new Error('Failed to fetch notes');
+        }
+        const data: Note[] = await response.json();
+        setNotes(data);
+      } catch (error) {
+        console.error(error);
+        // 在这里可以设置一个错误状态，向用户显示消息
+      } finally {
+        setIsLoading(false);
       }
-    } catch (error) {
-      console.error("Failed to load notes from local storage", error);
-    }
-    setIsLoading(false); // 标记初始加载已完成
+    };
+    fetchNotes();
   }, []); // 空依赖数组确保此 effect 只运行一次
 
-  // 当 notes 状态发生变化时，将其保存到 localStorage (仅在初始加载后)
-  useEffect(() => {
-    if (!isLoading) {
-      localStorage.setItem(NOTES_STORAGE_KEY, JSON.stringify(notes));
+  const handleAddNote = async (text: string) => {
+    try {
+      const response = await fetch('/api/notes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text }),
+      });
+      if (!response.ok) {
+        throw new Error('Failed to add note');
+      }
+      const newNote: Note = await response.json();
+      setNotes([...notes, newNote]);
+    } catch (error) {
+      console.error(error);
     }
-  }, [notes, isLoading]);
-
-  const handleAddNote = (text: string) => {
-    setNotes([...notes, { id: Date.now(), text }]);
   };
 
-  const handleDeleteNote = (idToDelete: number) => {
-    setNotes(notes.filter((note) => note.id !== idToDelete));
+  const handleDeleteNote = async (idToDelete: number) => {
+    try {
+      const response = await fetch(`/api/notes/${idToDelete}`, {
+        method: 'DELETE',
+      });
+      if (!response.ok) {
+        throw new Error('Failed to delete note');
+      }
+      setNotes(notes.filter((note) => note.id !== idToDelete));
+    } catch (error) {
+      console.error(error);
+    }
   };
 
-  const handleSaveNote = (idToSave: number, newText: string) => {
-    setNotes(
-      notes.map((note) =>
-        note.id === idToSave ? { ...note, text: newText } : note
-      )
-    );
+  const handleSaveNote = async (idToSave: number, newText: string) => {
+    try {
+      const response = await fetch(`/api/notes/${idToSave}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: newText }),
+      });
+      if (!response.ok) {
+        throw new Error('Failed to save note');
+      }
+      const updatedNote: Note = await response.json();
+      setNotes(
+        notes.map((note) => (note.id === updatedNote.id ? updatedNote : note))
+      );
+    } catch (error) {
+      console.error(error);
+    }
   };
 
-  const handleClearAllNotes = () => {
+  const handleClearAllNotes = async () => {
     // 这是一个破坏性操作，最好有确认提示
     if (window.confirm("您确定要清空所有记事吗？此操作无法撤销。")) {
-      setNotes([]);
+      try {
+        const response = await fetch('/api/notes', { method: 'DELETE' });
+        if (!response.ok) {
+          throw new Error('Failed to clear notes');
+        }
+        setNotes([]);
+      } catch (error) {
+        console.error(error);
+      }
     }
   };
 
